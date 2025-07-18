@@ -204,7 +204,6 @@ const ServiceTracker = () => {
                         {step.label}
                       </p>
                       {isCurrent && (
-                        <p className="text-sm text-gray-600">{serviceStatus.currentStep}</p>
                         <p className="text-sm text-gray-600">{getCurrentStep(serviceStatus.status)}</p>
                       )}
                     </div>
