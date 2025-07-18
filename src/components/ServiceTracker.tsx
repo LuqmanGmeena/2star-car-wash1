@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Clock, CheckCircle, Car, MapPin, Phone } from 'lucide-react';
+import { bookingService, Booking } from '../services/bookingService';
 
 interface ServiceStatus {
   id: string;
@@ -13,44 +14,59 @@ interface ServiceStatus {
 
 const ServiceTracker = () => {
   const [trackingId, setTrackingId] = useState('');
-  const [serviceStatus, setServiceStatus] = useState<ServiceStatus | null>(null);
+  const [serviceStatus, setServiceStatus] = useState<Booking | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Mock data for demonstration
-  const mockStatuses: { [key: string]: ServiceStatus } = {
-    '2SW-123456': {
-      id: '2SW-123456',
-      status: 'on-way',
-      estimatedTime: '15 minutes',
-      currentStep: 'Our team is on the way to your location',
-      customerName: 'Mwijaku Hassan',
-      service: 'VIP Complete Package',
-      location: 'Kigamboni, Dar es Salaam'
-    },
-    '2SW-789012': {
-      id: '2SW-789012',
-      status: 'in-progress',
-      estimatedTime: '30 minutes',
-      currentStep: 'Currently washing your vehicle',
-      customerName: 'Amina Juma',
-      service: 'Exterior Wash',
-      location: 'Mikocheni, Dar es Salaam'
+  const handleTrack = async () => {
+    setIsLoading(true);
+    
+    try {
+      const booking = await bookingService.getBookingByBookingId(trackingId);
+      setServiceStatus(booking);
+    } catch (error) {
+      console.error('Error tracking booking:', error);
+      setServiceStatus(null);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleTrack = () => {
-    setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      const status = mockStatuses[trackingId];
-      setServiceStatus(status || null);
-      setIsLoading(false);
-    }, 1000);
+  const getEstimatedTime = (status: string) => {
+    switch (status) {
+      case 'confirmed':
+        return 'Waiting for team dispatch';
+      case 'on-way':
+        return '15-30 minutes';
+      case 'in-progress':
+        return '30-60 minutes';
+      case 'completed':
+        return 'Service completed';
+      default:
+        return 'Processing...';
+    }
+  };
+
+  const getCurrentStep = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'Booking received, awaiting confirmation';
+      case 'confirmed':
+        return 'Booking confirmed, team will be dispatched soon';
+      case 'on-way':
+        return 'Our team is on the way to your location';
+      case 'in-progress':
+        return 'Currently washing your vehicle';
+      case 'completed':
+        return 'Service completed successfully';
+      default:
+        return 'Processing your booking...';
+    }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
+      case 'pending':
+        return <Clock className="h-6 w-6 text-gray-600" />;
       case 'confirmed':
         return <Clock className="h-6 w-6 text-blue-600" />;
       case 'on-way':
@@ -66,6 +82,8 @@ const ServiceTracker = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'pending':
+        return 'bg-gray-100 text-gray-800';
       case 'confirmed':
         return 'bg-blue-100 text-blue-800';
       case 'on-way':
@@ -80,6 +98,7 @@ const ServiceTracker = () => {
   };
 
   const statusSteps = [
+    { key: 'pending', label: 'Booking Received' },
     { key: 'confirmed', label: 'Booking Confirmed' },
     { key: 'on-way', label: 'Team On The Way' },
     { key: 'in-progress', label: 'Service In Progress' },
@@ -120,7 +139,7 @@ const ServiceTracker = () => {
           </button>
         </div>
         <p className="text-sm text-gray-600 mt-2">
-          Try: 2SW-123456 or 2SW-789012 for demo
+          Enter your booking ID to track your service status
         </p>
       </div>
 
@@ -134,7 +153,7 @@ const ServiceTracker = () => {
                 <h3 className="text-xl font-semibold text-gray-900">
                   {serviceStatus.service}
                 </h3>
-                <p className="text-gray-600">for {serviceStatus.customerName}</p>
+                <p className="text-gray-600">for {serviceStatus.firstName} {serviceStatus.lastName}</p>
               </div>
               <div className="flex items-center space-x-2">
                 {getStatusIcon(serviceStatus.status)}
@@ -151,7 +170,7 @@ const ServiceTracker = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <Clock className="h-5 w-5 text-gray-500" />
-                <span className="text-gray-700">ETA: {serviceStatus.estimatedTime}</span>
+                <span className="text-gray-700">ETA: {getEstimatedTime(serviceStatus.status)}</span>
               </div>
             </div>
           </div>
@@ -186,6 +205,7 @@ const ServiceTracker = () => {
                       </p>
                       {isCurrent && (
                         <p className="text-sm text-gray-600">{serviceStatus.currentStep}</p>
+                        <p className="text-sm text-gray-600">{getCurrentStep(serviceStatus.status)}</p>
                       )}
                     </div>
                   </div>

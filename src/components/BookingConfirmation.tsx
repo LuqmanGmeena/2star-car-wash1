@@ -1,5 +1,7 @@
 import React from 'react';
 import { CheckCircle, Calendar, Clock, Car, User, MapPin, Phone } from 'lucide-react';
+import { bookingService } from '../services/bookingService';
+import { paymentService } from '../services/paymentService';
 
 interface BookingData {
   service: string;
@@ -23,6 +25,47 @@ interface BookingConfirmationProps {
 
 const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ bookingData, onClose }) => {
   const bookingId = `2SW-${Date.now().toString().slice(-6)}`;
+
+  // Save booking to Firebase when component mounts
+  React.useEffect(() => {
+    const saveBooking = async () => {
+      try {
+        // Save booking
+        await bookingService.createBooking(bookingData);
+        
+        // Create payment record
+        await paymentService.createPayment({
+          bookingId,
+          customerName: `${bookingData.firstName} ${bookingData.lastName}`,
+          customerPhone: bookingData.phone,
+          service: bookingData.service,
+          amount: getServicePrice(bookingData.service),
+          paymentMethod: bookingData.paymentMethod as 'cash' | 'mpesa' | 'card',
+          status: 'pending',
+          date: bookingData.date,
+          time: bookingData.time,
+          location: bookingData.location,
+          notes: bookingData.specialRequests
+        });
+      } catch (error) {
+        console.error('Error saving booking:', error);
+      }
+    };
+
+    saveBooking();
+  }, [bookingData, bookingId]);
+
+  const getServicePrice = (service: string): number => {
+    const prices: { [key: string]: number } = {
+      'Express Wash': 5000,
+      'Exterior Wash': 10000,
+      'Interior Cleaning': 15000,
+      'Engine Wash': 15000,
+      'Waxing & Polishing': 15000,
+      'VIP Complete Package': 100000
+    };
+    return prices[service] || 0;
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
