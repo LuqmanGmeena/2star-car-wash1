@@ -28,8 +28,6 @@ const PriceCalculator = () => {
   const addOnServices = {
     'Air Freshener': 2000,
     'Tire Shine': 3000,
-    'Dashboard Polish': 2500,
-    'Leather Conditioning': 5000,
     'Paint Protection': 8000
   };
 
