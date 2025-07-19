@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useEffect } from 'react';
 import { 
   BarChart3, 
   Users, 
@@ -12,9 +13,23 @@ import {
   DollarSign
 } from 'lucide-react';
 import PaymentManagement from '../components/PaymentManagement';
+import BookingManagement from '../components/BookingManagement';
+import CustomerManagement from '../components/CustomerManagement';
+import { firestoreService, DashboardStats } from '../services/firestoreService';
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [stats, setStats] = useState<DashboardStats>({
+    totalBookings: 0,
+    todayBookings: 0,
+    totalRevenue: 0,
+    todayRevenue: 0,
+    pendingBookings: 0,
+    completedBookings: 0,
+    totalCustomers: 0,
+    pendingPayments: 0
+  });
+  const [loading, setLoading] = useState(true);
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 className="h-5 w-5" /> },
@@ -24,69 +39,103 @@ const Admin = () => {
     { id: 'settings', label: 'Settings', icon: <Settings className="h-5 w-5" /> }
   ];
 
+  useEffect(() => {
+    const loadDashboardStats = async () => {
+      try {
+        setLoading(true);
+        const dashboardStats = await firestoreService.getDashboardStats();
+        setStats(dashboardStats);
+      } catch (error) {
+        console.error('Error loading dashboard stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboardStats();
+
+    // Set up real-time listener for stats
+    const unsubscribe = firestoreService.subscribeToDashboardStats((newStats) => {
+      setStats(newStats);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const dashboardStats = [
     {
       title: 'Total Revenue',
-      value: 'TZSH 2,450,000',
-      change: '+12.5%',
+      value: `TZSH ${stats.totalRevenue.toLocaleString()}`,
+      change: `Today: TZSH ${stats.todayRevenue.toLocaleString()}`,
       icon: <DollarSign className="h-8 w-8 text-green-600" />,
       color: 'green'
     },
     {
       title: 'Total Bookings',
-      value: '156',
-      change: '+8.2%',
+      value: stats.totalBookings.toString(),
+      change: `Today: ${stats.todayBookings}`,
       icon: <Calendar className="h-8 w-8 text-blue-600" />,
       color: 'blue'
     },
     {
-      title: 'Active Customers',
-      value: '89',
-      change: '+15.3%',
+      title: 'Total Customers',
+      value: stats.totalCustomers.toString(),
+      change: `Pending: ${stats.pendingBookings}`,
       icon: <Users className="h-8 w-8 text-purple-600" />,
       color: 'purple'
     },
     {
-      title: 'Services Completed',
-      value: '142',
-      change: '+6.7%',
+      title: 'Completed Services',
+      value: stats.completedBookings.toString(),
+      change: `Pending Payments: ${stats.pendingPayments}`,
       icon: <Car className="h-8 w-8 text-orange-600" />,
       color: 'orange'
     }
   ];
 
-  const recentBookings = [
-    {
-      id: '2SW-123456',
-      customer: 'Mwijaku Hassan',
-      service: 'VIP Complete Package',
-      status: 'completed',
-      amount: 100000,
-      time: '2 hours ago'
-    },
-    {
-      id: '2SW-789012',
-      customer: 'Amina Juma',
-      service: 'Exterior Wash',
-      status: 'in-progress',
-      amount: 10000,
-      time: '30 minutes ago'
-    },
-    {
-      id: '2SW-345678',
-      customer: 'Hassan Mwinyimkuu',
-      service: 'Interior Cleaning',
-      status: 'pending',
-      amount: 15000,
-      time: '1 hour ago'
-    }
-  ];
+  const [recentBookings, setRecentBookings] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadRecentBookings = async () => {
+      try {
+        const bookings = await firestoreService.getAllBookings();
+        setRecentBookings(bookings.slice(0, 5)); // Get latest 5 bookings
+      } catch (error) {
+        console.error('Error loading recent bookings:', error);
+      }
+    };
+
+    loadRecentBookings();
+
+    // Set up real-time listener for bookings
+    const unsubscribe = firestoreService.subscribeToBookings((bookings) => {
+      setRecentBookings(bookings.slice(0, 5));
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const renderDashboard = () => (
     <div className="space-y-6">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {dashboardStats.map((stat, index) => (
+        {loading ? (
+          // Loading skeleton
+          Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="bg-white p-6 rounded-xl shadow-lg animate-pulse">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-24"></div>
+                  <div className="h-8 bg-gray-200 rounded w-16"></div>
+                  <div className="h-3 bg-gray-200 rounded w-20"></div>
+                </div>
+                <div className="h-8 w-8 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+          ))
+        ) : (
+          dashboardStats.map((stat, index) => (
           <div key={index} className="bg-white p-6 rounded-xl shadow-lg">
             <div className="flex items-center justify-between">
               <div>
@@ -101,7 +150,8 @@ const Admin = () => {
               {stat.icon}
             </div>
           </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Recent Activity */}
@@ -109,27 +159,46 @@ const Admin = () => {
         {/* Recent Bookings */}
         <div className="bg-white p-6 rounded-xl shadow-lg">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Bookings</h3>
-          <div className="space-y-4">
-            {recentBookings.map((booking) => (
+          {loading ? (
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="animate-pulse p-4 bg-gray-50 rounded-lg">
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-200 rounded w-32"></div>
+                    <div className="h-3 bg-gray-200 rounded w-24"></div>
+                    <div className="h-3 bg-gray-200 rounded w-20"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {recentBookings.map((booking) => (
               <div key={booking.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div>
-                  <p className="font-medium text-gray-900">{booking.customer}</p>
+                  <p className="font-medium text-gray-900">{booking.firstName} {booking.lastName}</p>
                   <p className="text-sm text-gray-600">{booking.service}</p>
-                  <p className="text-xs text-gray-500">{booking.id} • {booking.time}</p>
+                  <p className="text-xs text-gray-500">{booking.bookingId} • {booking.date}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-gray-900">TZSH {booking.amount.toLocaleString()}</p>
+                  <p className="font-semibold text-gray-900">TZSH {booking.totalAmount?.toLocaleString() || 'N/A'}</p>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     booking.status === 'completed' ? 'bg-green-100 text-green-800' :
                     booking.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                    booking.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
+                    booking.status === 'on-way' ? 'bg-yellow-100 text-yellow-800' :
                     'bg-yellow-100 text-yellow-800'
                   }`}>
                     {booking.status}
                   </span>
                 </div>
               </div>
-            ))}
-          </div>
+              ))}
+              {recentBookings.length === 0 && (
+                <p className="text-gray-500 text-center py-4">No recent bookings</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Quick Actions */}
@@ -212,20 +281,8 @@ const Admin = () => {
         <div>
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'payments' && <PaymentManagement />}
-          {activeTab === 'bookings' && (
-            <div className="bg-white p-8 rounded-xl shadow-lg text-center">
-              <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Bookings Management</h3>
-              <p className="text-gray-600">Booking management system coming soon...</p>
-            </div>
-          )}
-          {activeTab === 'customers' && (
-            <div className="bg-white p-8 rounded-xl shadow-lg text-center">
-              <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">Customer Management</h3>
-              <p className="text-gray-600">Customer management system coming soon...</p>
-            </div>
-          )}
+          {activeTab === 'bookings' && <BookingManagement />}
+          {activeTab === 'customers' && <CustomerManagement />}
           {activeTab === 'settings' && (
             <div className="bg-white p-8 rounded-xl shadow-lg text-center">
               <Settings className="h-16 w-16 text-gray-400 mx-auto mb-4" />

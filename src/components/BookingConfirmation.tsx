@@ -1,7 +1,6 @@
 import React from 'react';
 import { CheckCircle, Calendar, Clock, Car, User, MapPin, Phone } from 'lucide-react';
-import { bookingService } from '../services/bookingService';
-import { paymentService } from '../services/paymentService';
+import { firestoreService } from '../services/firestoreService';
 
 interface BookingData {
   service: string;
@@ -31,10 +30,10 @@ const BookingConfirmation: React.FC<BookingConfirmationProps> = ({ bookingData, 
     const saveBooking = async () => {
       try {
         // Save booking
-        await bookingService.createBooking(bookingData);
+        await firestoreService.createBooking(bookingData);
         
         // Create payment record
-        await paymentService.createPayment({
+        await firestoreService.createPayment({
           bookingId,
           customerName: `${bookingData.firstName} ${bookingData.lastName}`,
           customerPhone: bookingData.phone,

@@ -16,21 +16,7 @@ import {
   Clock,
   AlertCircle
 } from 'lucide-react';
-
-interface Payment {
-  id: string;
-  bookingId: string;
-  customerName: string;
-  customerPhone: string;
-  service: string;
-  amount: number;
-  paymentMethod: 'cash' | 'mpesa' | 'card';
-  status: 'pending' | 'completed' | 'failed' | 'refunded';
-  date: string;
-  time: string;
-  location: string;
-  notes?: string;
-}
+import { firestoreService, Payment } from '../services/firestoreService';
 
 interface PaymentStats {
   totalRevenue: number;
@@ -40,48 +26,8 @@ interface PaymentStats {
 }
 
 const PaymentManagement = () => {
-  const [payments, setPayments] = useState<Payment[]>([
-    {
-      id: 'PAY-001',
-      bookingId: '2SW-123456',
-      customerName: 'Mwijaku Hassan',
-      customerPhone: '+255 713 456789',
-      service: 'VIP Complete Package',
-      amount: 100000,
-      paymentMethod: 'mpesa',
-      status: 'completed',
-      date: '2025-01-15',
-      time: '10:30 AM',
-      location: 'Kigamboni, Dar es Salaam',
-      notes: 'Customer very satisfied with service'
-    },
-    {
-      id: 'PAY-002',
-      bookingId: '2SW-789012',
-      customerName: 'Amina Juma',
-      customerPhone: '+255 784 123456',
-      service: 'Exterior Wash',
-      amount: 10000,
-      paymentMethod: 'cash',
-      status: 'completed',
-      date: '2025-01-15',
-      time: '2:15 PM',
-      location: 'Mikocheni, Dar es Salaam'
-    },
-    {
-      id: 'PAY-003',
-      bookingId: '2SW-345678',
-      customerName: 'Hassan Mwinyimkuu',
-      customerPhone: '+255 756 789012',
-      service: 'Interior Cleaning',
-      amount: 15000,
-      paymentMethod: 'card',
-      status: 'pending',
-      date: '2025-01-15',
-      time: '4:00 PM',
-      location: 'Masaki, Dar es Salaam'
-    }
-  ]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -95,6 +41,30 @@ const PaymentManagement = () => {
     pendingPayments: 0,
     completedPayments: 0
   });
+
+  useEffect(() => {
+    const loadPayments = async () => {
+      try {
+        setLoading(true);
+        const paymentsData = await firestoreService.getAllPayments();
+        setPayments(paymentsData);
+      } catch (error) {
+        console.error('Error loading payments:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPayments();
+
+    // Set up real-time listener
+    const unsubscribe = firestoreService.subscribeToPayments((newPayments) => {
+      setPayments(newPayments);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     // Calculate stats
@@ -157,10 +127,40 @@ const PaymentManagement = () => {
   };
 
   const updatePaymentStatus = (paymentId: string, newStatus: Payment['status']) => {
-    setPayments(prev => prev.map(payment => 
-      payment.id === paymentId ? { ...payment, status: newStatus } : payment
-    ));
+    firestoreService.updatePaymentStatus(paymentId, newStatus).catch(error => {
+      console.error('Error updating payment status:', error);
+      alert('Failed to update payment status');
+    });
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 bg-gray-200 rounded w-64"></div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="bg-white p-6 rounded-xl shadow-lg">
+                  <div className="space-y-2">
+                    <div className="h-4 bg-gray-200 rounded w-24"></div>
+                    <div className="h-8 bg-gray-200 rounded w-16"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-lg">
+              <div className="space-y-4">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className="h-16 bg-gray-200 rounded"></div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -308,7 +308,7 @@ const PaymentManagement = () => {
                       <div>
                         <div className="text-sm font-medium text-gray-900">{payment.customerName}</div>
                         <div className="text-sm text-gray-500">{payment.customerPhone}</div>
-                        <div className="text-xs text-gray-400">{payment.bookingId}</div>
+                        <div className="text-xs text-gray-400">{payment.paymentId}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -350,7 +350,7 @@ const PaymentManagement = () => {
                         </button>
                         {payment.status === 'pending' && (
                           <button
-                            onClick={() => updatePaymentStatus(payment.id, 'completed')}
+                            onClick={() => updatePaymentStatus(payment.id!, 'completed')}
                             className="text-green-600 hover:text-green-900"
                           >
                             <CheckCircle className="h-4 w-4" />
@@ -458,7 +458,7 @@ const PaymentManagement = () => {
                     {selectedPayment.status === 'pending' && (
                       <button
                         onClick={() => {
-                          updatePaymentStatus(selectedPayment.id, 'completed');
+                          updatePaymentStatus(selectedPayment.id!, 'completed');
                           setSelectedPayment(null);
                         }}
                         className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"

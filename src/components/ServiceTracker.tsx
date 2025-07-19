@@ -1,16 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Clock, CheckCircle, Car, MapPin, Phone } from 'lucide-react';
-import { bookingService, Booking } from '../services/bookingService';
-
-interface ServiceStatus {
-  id: string;
-  status: 'confirmed' | 'on-way' | 'in-progress' | 'completed';
-  estimatedTime: string;
-  currentStep: string;
-  customerName: string;
-  service: string;
-  location: string;
-}
+import { firestoreService, Booking } from '../services/firestoreService';
 
 const ServiceTracker = () => {
   const [trackingId, setTrackingId] = useState('');
@@ -21,7 +11,7 @@ const ServiceTracker = () => {
     setIsLoading(true);
     
     try {
-      const booking = await bookingService.getBookingByBookingId(trackingId);
+      const booking = await firestoreService.getBookingByBookingId(trackingId);
       setServiceStatus(booking);
     } catch (error) {
       console.error('Error tracking booking:', error);
