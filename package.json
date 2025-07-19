@@ -7,7 +7,18 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "firebase:login": "firebase login",
+    "firebase:init": "firebase init",
+    "firebase:deploy": "npm run build && firebase deploy",
+    "firebase:serve": "npm run build && firebase serve",
+    "firebase:open": "firebase open",
+    "firebase:console": "firebase open console",
+    "firebase:hosting": "firebase open hosting",
+    "start:local": "npm run dev",
+    "deploy:firebase": "npm run build && firebase deploy --only hosting",
+    "deploy:firestore": "firebase deploy --only firestore",
+    "view:firebase": "firebase open hosting:site"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",

@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read/write access to bookings
+    match /bookings/{document} {
+      allow read, write: if true;
+    }
+    
+    // Allow read/write access to payments
+    match /payments/{document} {
+      allow read, write: if true;
+    }
+    
+    // Allow read/write access to customers
+    match /customers/{document} {
+      allow read, write: if true;
+    }
+  }
+}
